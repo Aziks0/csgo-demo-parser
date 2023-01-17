@@ -29,4 +29,6 @@ pub enum Error {
     Protobuf(#[from] protobuf::Error),
     #[error(transparent)]
     HeaderParsing(#[from] HeaderParsingError),
+    #[error("unknown packet command found: {0}")]
+    UnknownPacketCommand(u8),
 }
