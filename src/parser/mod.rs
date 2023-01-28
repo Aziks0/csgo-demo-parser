@@ -1,4 +1,5 @@
 mod command;
+mod console_command;
 mod header;
 
 // Re-export them to be in `csgo_demo_parser::parser`
