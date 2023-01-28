@@ -3,6 +3,7 @@ mod console_command;
 mod header;
 mod user_command;
 
+pub mod packet;
 pub mod string_table;
 
 // Re-export them to be in `csgo_demo_parser::parser`
