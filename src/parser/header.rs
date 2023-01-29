@@ -13,6 +13,7 @@ const EXPECTED_DEMO_PROTOCOL: u32 = 4;
 /// Expected game name.
 const EXPECTED_GAME: &str = "csgo"; // in lowercase
 
+/// Header of a demo file. It contains general information about the demo.
 #[derive(Getters, Debug)]
 #[getset(get = "pub")]
 pub struct DemoHeader {
