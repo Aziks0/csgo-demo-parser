@@ -1,5 +1,7 @@
 use std::io;
 
+use crate::parser::packet::message::Message;
+
 /// Convenient [`Result`] alias for [`Error`].
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -20,6 +22,17 @@ pub enum HeaderParsingError {
     },
 }
 
+/// Error when parsing data tables of a demo file.
+#[derive(thiserror::Error, Debug)]
+pub enum DataTablesParsingError {
+    #[error("expected a send table, found: {0:?}")]
+    NotASendTable(Message),
+    #[error("no send table has been found for this server class: {0}")]
+    NoAssociatedSendTableForServerClass(String),
+    #[error("invalid server class index (expected: < {expected_max}, found: {found})")]
+    InvalidServerClassIndex { expected_max: usize, found: usize },
+}
+
 /// Error type for this library.
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -31,4 +44,6 @@ pub enum Error {
     HeaderParsing(#[from] HeaderParsingError),
     #[error("unknown packet command found: {0}")]
     UnknownPacketCommand(u8),
+    #[error(transparent)]
+    DataTablesParsing(#[from] DataTablesParsingError),
 }

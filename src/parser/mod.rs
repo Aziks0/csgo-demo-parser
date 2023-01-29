@@ -3,6 +3,7 @@ mod console_command;
 mod header;
 mod user_command;
 
+pub mod data_table;
 pub mod packet;
 pub mod string_table;
 
