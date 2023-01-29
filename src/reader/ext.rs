@@ -13,6 +13,9 @@ pub(crate) trait ReadExt: io::Read {
     /// If `limit` is reached and no null terminator has been found, an error
     /// is returned.
     fn read_string_to_terminator(&mut self, limit: usize) -> io::Result<String>;
+
+    /// Read a [`u16`].
+    fn read_u16(&mut self) -> io::Result<u16>;
 }
 
 impl<R: io::Read> ReadExt for R {
@@ -43,5 +46,11 @@ impl<R: io::Read> ReadExt for R {
             io::ErrorKind::Other,
             "limit has been reached without finding a null terminator",
         ))
+    }
+
+    fn read_u16(&mut self) -> io::Result<u16> {
+        let mut buf = [0; 2];
+        self.read_exact(&mut buf)?;
+        Ok(u16::from_le_bytes(buf))
     }
 }
