@@ -2,6 +2,10 @@ use getset::Getters;
 use protobuf::CodedInputStream;
 
 use crate::error::{Error, Result};
+use crate::parser::data_table::DataTables;
+use crate::parser::packet::message::Message;
+use crate::parser::string_table::StringTable;
+use crate::parser::UserCommandCompressed;
 
 #[derive(Debug)]
 pub(crate) enum Command {
@@ -56,6 +60,26 @@ impl PacketHeader {
             player_slot: reader.read_raw_byte()?,
         })
     }
+}
+
+#[derive(Debug)]
+pub enum PacketContent {
+    /// A sync tick. It contains no data.
+    SyncTick,
+    /// The last packet dispatched. It means there are no more packet left to
+    /// parse.
+    Stop,
+    /// A console command.
+    ConsoleCommand(String),
+    /// A delta-compressed user command. See [`UserCommandCompressed`]
+    /// documentation for more information.
+    UserCommand(UserCommandCompressed),
+    /// A vector of packet messages.
+    Packet(Vec<Message>),
+    /// A vector of string tables. See [`StringTable`] documentation for more
+    /// information.
+    StringTables(Vec<StringTable>),
+    DataTables(DataTables),
 }
 
 #[cfg(test)]

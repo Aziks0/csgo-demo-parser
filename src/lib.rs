@@ -1,8 +1,12 @@
 mod messages;
-mod parser;
 mod reader;
 
 pub mod error;
+pub mod parser;
+
+// Re-export them to be in `csgo_demo_parser`
+#[doc(inline)]
+pub use parser::DemoParser;
 
 #[cfg(test)]
 mod tests {
