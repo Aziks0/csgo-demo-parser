@@ -79,6 +79,12 @@ pub enum PacketContent {
     /// A vector of string tables. See [`StringTable`] documentation for more
     /// information.
     StringTables(Vec<StringTable>),
+    /// Basically string tables for entities.
+    ///
+    /// See [Valve's community documentation on data tables][Valve Doc DT] for
+    /// more information.
+    ///
+    /// [Valve Doc DT]: https://developer.valvesoftware.com/wiki/Networking_Entities#Network_Data_Tables
     DataTables(DataTables),
 }
 
