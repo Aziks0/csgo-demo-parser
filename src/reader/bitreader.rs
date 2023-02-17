@@ -1,5 +1,37 @@
 use std::io::{Error, ErrorKind, Read, Result, Seek, SeekFrom};
 
+/// A bit reader.
+///
+/// Bytes are read Most Significant byte first, but the inner bits of every
+/// bytes are read Least Significant bit first.
+///
+/// # Exemple:
+///
+/// ```ignore
+/// # // `BitReader`is private, so we cannot use doctest
+/// # fn main() -> std::io::Result<()> {
+/// let bytes: &[u8] = &[0b1100_0010, 0b1001_1000, 0b1010_1010];
+/// let mut reader = BitReader::new(bytes);
+///
+/// // First byte
+/// assert_eq!(reader.read_byte()?, bytes[0]);
+///
+/// // Second byte, because we read bits, the byte is read from right to left
+/// assert!(!reader.read_bit()?); // 0
+/// assert!(!reader.read_bit()?); // 0
+/// assert!(!reader.read_bit()?); // 0
+/// assert!(reader.read_bit()?);  // 1
+/// // _
+/// assert!(reader.read_bit()?);  // 1
+/// assert!(!reader.read_bit()?); // 0
+/// assert!(!reader.read_bit()?); // 0
+/// assert!(reader.read_bit()?);  // 1
+///
+/// // Third byte
+/// assert_eq!(reader.read_byte()?, bytes[2]);
+/// #   Ok(())
+/// # }
+/// ```
 pub struct BitReader<'a> {
     bytes: &'a [u8],
     /// Position in bits
@@ -246,6 +278,29 @@ mod tests {
         assert_eq!(buf, expected_byte);
 
         assert!(!reader.read_bit().unwrap());
+    }
+
+    #[test]
+    fn read_bytes_and_bits() {
+        let bytes: &[u8] = &[0b1100_0010, 0b1001_1000, 0b1010_1010];
+        let mut reader = BitReader::new(bytes);
+
+        // First byte
+        assert_eq!(reader.read_byte().unwrap(), bytes[0]);
+
+        // Second byte, because we read bits, the byte is read from right to left
+        assert!(!reader.read_bit().unwrap()); // 0
+        assert!(!reader.read_bit().unwrap()); // 0
+        assert!(!reader.read_bit().unwrap()); // 0
+        assert!(reader.read_bit().unwrap()); // 1
+
+        assert!(reader.read_bit().unwrap()); // 1
+        assert!(!reader.read_bit().unwrap()); // 0
+        assert!(!reader.read_bit().unwrap()); // 0
+        assert!(reader.read_bit().unwrap()); // 1
+
+        // Third byte
+        assert_eq!(reader.read_byte().unwrap(), bytes[2]);
     }
 
     #[test]
