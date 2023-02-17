@@ -77,3 +77,22 @@ fn valid_demo_hltv_2018() {
 
     assert_eq!(packet_number, 377764);
 }
+
+#[test]
+fn valid_demo_hltv_2017() {
+    let mut demo_file = File::open(concatcp!(
+        DATA_TESTS_DIR,
+        "/gambit_vs_immortals_PGL_major_2017_cobblestone.dem"
+    ))
+    .unwrap();
+    let mut parser = DemoParser::try_new(&mut demo_file).unwrap();
+
+    assert_eq!(parser.header().map_name(), &String::from("de_cbble"));
+
+    let mut packet_number = 0;
+    while parser.parse_next_packet().unwrap().is_some() {
+        packet_number += 1;
+    }
+
+    assert_eq!(packet_number, 282775);
+}
