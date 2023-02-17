@@ -1,4 +1,3 @@
-use bytes::Bytes;
 use protobuf::CodedInputStream;
 
 use crate::error::Result;
@@ -14,14 +13,14 @@ use crate::error::Result;
 #[derive(Debug)]
 pub struct UserCommandCompressed {
     pub out_sequence: u32,
-    pub data: Bytes,
+    pub data: Vec<u8>,
 }
 
 impl UserCommandCompressed {
     pub(crate) fn try_new(reader: &mut CodedInputStream) -> Result<Self> {
         Ok(Self {
             out_sequence: reader.read_fixed32()?,
-            data: reader.read_tokio_bytes()?,
+            data: reader.read_bytes()?,
         })
     }
 }

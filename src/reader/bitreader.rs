@@ -1,9 +1,7 @@
-use bytes::Bytes;
-
 use std::io::{Error, ErrorKind, Read, Result, Seek, SeekFrom};
 
-pub struct BitReader {
-    bytes: Bytes,
+pub struct BitReader<'a> {
+    bytes: &'a [u8],
     /// Position in bits
     position: usize,
     /// Length in bits
@@ -12,9 +10,9 @@ pub struct BitReader {
     length_bytes: usize,
 }
 
-impl BitReader {
-    /// Create a new bitreader.
-    pub fn new(bytes: Bytes) -> BitReader {
+impl<'a> BitReader<'a> {
+    /// Create a new bit reader.
+    pub fn new(bytes: &'a [u8]) -> BitReader {
         BitReader {
             position: 0,
             length_bytes: bytes.len(),
@@ -24,10 +22,10 @@ impl BitReader {
     }
 
     /// Read `size` bytes.
-    pub fn read_bytes_exact(&mut self, size: usize) -> Result<Bytes> {
+    pub fn read_bytes_exact(&mut self, size: usize) -> Result<Vec<u8>> {
         let mut buf = vec![0; size];
         self.read_exact(buf.as_mut_slice())?;
-        Ok(Bytes::from(buf))
+        Ok(buf)
     }
 
     /// Read a [`u16`].
@@ -112,7 +110,7 @@ impl BitReader {
     }
 }
 
-impl Read for BitReader {
+impl Read for BitReader<'_> {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
         let start_position = self.position;
         // The length of our BitReader's buffer is the upper bound
@@ -165,7 +163,7 @@ impl Read for BitReader {
     }
 }
 
-impl Seek for BitReader {
+impl Seek for BitReader<'_> {
     /// Seek to an offset, in bytes, in a stream.
     ///
     /// If the seek operation completed successfully, this method returns the
@@ -206,8 +204,7 @@ mod tests {
     fn read_bytes() {
         let mut buf: [u8; 4] = [0; 4];
         let bytes: &[u8] = &[0, 1, 2, 3];
-        let bytes = Bytes::from(bytes);
-        let mut reader = BitReader::new(bytes.clone());
+        let mut reader = BitReader::new(bytes);
         reader.read_exact(&mut buf).unwrap();
         assert_eq!(bytes[0..], buf);
     }
@@ -215,7 +212,6 @@ mod tests {
     #[test]
     fn read_bits() {
         let bytes: &[u8] = &[0b1010_1100];
-        let bytes = Bytes::from(bytes);
         let mut reader = BitReader::new(bytes);
 
         assert!(reader.read_bit().unwrap());
@@ -233,7 +229,6 @@ mod tests {
     fn read_bytes_unaligned() {
         let mut buf: [u8; 1] = [0];
         let bytes: &[u8] = &[0b1100_0010, 0b1001_1000];
-        let bytes = Bytes::from(bytes);
         let expected_byte: [u8; 1] = [0b1000_0101];
         let mut reader = BitReader::new(bytes);
 
@@ -249,7 +244,6 @@ mod tests {
     fn error_on_overflow_read_bytes() {
         let mut buf: [u8; 5] = [0; 5];
         let bytes: &[u8] = &[0, 1, 2, 3];
-        let bytes = Bytes::from(bytes);
         let mut reader = BitReader::new(bytes);
         assert_eq!(
             reader.read_exact(&mut buf).map_err(|e| e.kind()),
@@ -261,7 +255,6 @@ mod tests {
     fn error_on_overflow_read_bits() {
         let mut buf = [0];
         let bytes: &[u8] = &[0];
-        let bytes = Bytes::from(bytes);
         let mut reader = BitReader::new(bytes);
         reader.read_exact(&mut buf).unwrap();
         assert_eq!(
@@ -274,8 +267,7 @@ mod tests {
     fn seek_bytes() {
         let mut buf: [u8; 2] = [0; 2];
         let bytes: &[u8] = &[0, 1, 2, 3, 4, 5];
-        let bytes = Bytes::from(bytes);
-        let mut reader = BitReader::new(bytes.clone());
+        let mut reader = BitReader::new(bytes);
 
         assert_eq!(reader.seek(SeekFrom::Current(2)).unwrap(), 2);
         reader.read_exact(&mut buf).unwrap();
@@ -293,7 +285,6 @@ mod tests {
     #[test]
     fn seek_bits() {
         let bytes: &[u8] = &[0b1010_1100];
-        let bytes = Bytes::from(bytes);
         let mut reader = BitReader::new(bytes);
 
         assert!(reader.read_bit().unwrap());
@@ -320,8 +311,7 @@ mod tests {
     fn seek_bytes_unaligned() {
         let mut buf: [u8; 1] = [0];
         let bytes: &[u8] = &[0b1100_1111, 0b1001_0000];
-        let bytes = Bytes::from(bytes);
-        let mut reader = BitReader::new(bytes.clone());
+        let mut reader = BitReader::new(bytes);
 
         assert!(reader.read_bit().unwrap());
 
@@ -344,7 +334,6 @@ mod tests {
     #[test]
     fn error_on_overflow_seek_bytes() {
         let bytes: &[u8] = &[0, 1, 2, 3];
-        let bytes = Bytes::from(bytes);
         let mut reader = BitReader::new(bytes);
         assert_eq!(
             reader.seek(SeekFrom::Start(6)).map_err(|e| e.kind()),
@@ -355,7 +344,6 @@ mod tests {
     #[test]
     fn error_on_overflow_seek_bits() {
         let bytes: &[u8] = &[0, 1, 2, 3];
-        let bytes = Bytes::from(bytes);
         let mut reader = BitReader::new(bytes);
         assert_eq!(
             reader.seek(SeekFrom::Start(36)).map_err(|e| e.kind()),

@@ -1,4 +1,3 @@
-use bytes::Bytes;
 use getset::Getters;
 use protobuf::CodedInputStream;
 use std::io::{Seek, SeekFrom};
@@ -15,7 +14,7 @@ pub struct Strings {
     /// Strings name.
     name: String,
     /// Strings data.
-    data: Option<Bytes>,
+    data: Option<Vec<u8>>,
 }
 
 impl Strings {
@@ -100,8 +99,8 @@ pub(crate) struct StringTables {
 impl StringTables {
     #[instrument(level = "trace", skip(reader))]
     pub(crate) fn try_new(reader: &mut CodedInputStream) -> Result<Self> {
-        let data = reader.read_tokio_bytes()?;
-        let mut reader = BitReader::new(data);
+        let data = reader.read_bytes()?;
+        let mut reader = BitReader::new(data.as_slice());
 
         let tables_number = reader.read_byte()?;
         let mut tables: Vec<StringTable> = Vec::with_capacity(tables_number as usize);
