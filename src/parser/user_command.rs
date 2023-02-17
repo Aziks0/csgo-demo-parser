@@ -18,9 +18,12 @@ pub struct UserCommandCompressed {
 
 impl UserCommandCompressed {
     pub(crate) fn try_new(reader: &mut CodedInputStream) -> Result<Self> {
+        let out_sequence = reader.read_fixed32()?;
+        let size = reader.read_fixed32()?;
+
         Ok(Self {
-            out_sequence: reader.read_fixed32()?,
-            data: reader.read_bytes()?,
+            data: reader.read_raw_bytes(size)?,
+            out_sequence,
         })
     }
 }

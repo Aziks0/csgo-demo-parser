@@ -77,7 +77,7 @@ impl StringTable {
         // No idea what it is, but apparently it's useless, so we skip it
         // https://github.com/ValveSoftware/csgo-demoinfo/blob/049f8dbf49099d3cc544ec5061a7f7252cce7b82/demoinfogo/demofiledump.cpp#L1599
         if reader.read_bit()? {
-            let strings_number = reader.read_byte()?;
+            let strings_number = reader.read_u16()?;
             for _ in 0..strings_number {
                 reader.read_string_to_terminator(4096)?;
                 if reader.read_bit()? {
@@ -99,7 +99,8 @@ pub(crate) struct StringTables {
 impl StringTables {
     #[instrument(level = "trace", skip(reader))]
     pub(crate) fn try_new(reader: &mut CodedInputStream) -> Result<Self> {
-        let data = reader.read_bytes()?;
+        let size = reader.read_fixed32()?;
+        let data = reader.read_raw_bytes(size)?;
         let mut reader = BitReader::new(data.as_slice());
 
         let tables_number = reader.read_byte()?;
