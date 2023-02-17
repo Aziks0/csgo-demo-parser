@@ -229,7 +229,7 @@ mod tests {
     }
 
     #[test]
-    fn error_on_overflow_read_bytes() {
+    fn error_on_eof_read_bytes() {
         let mut buf: [u8; 5] = [0; 5];
         let bytes: &[u8] = &[0, 1, 2, 3];
         let mut reader = BitReader::new(bytes);
@@ -240,7 +240,7 @@ mod tests {
     }
 
     #[test]
-    fn error_on_overflow_read_bits() {
+    fn error_on_eof_read_bits() {
         let mut buf = [0];
         let bytes: &[u8] = &[0];
         let mut reader = BitReader::new(bytes);
