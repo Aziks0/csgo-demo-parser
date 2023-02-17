@@ -53,43 +53,6 @@ impl<'a> BitReader<'a> {
         Ok(bit)
     }
 
-    // Copyright 2015 Ilkka Rauta
-    //
-    // Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
-    // http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
-    // <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
-    // option. This file may not be copied, modified, or distributed
-    // except according to those terms.
-    //
-    // https://github.com/irauta/bitreader/blob/af674130489109495733ea007813643e2a3eb988/src/lib.rs#L352
-    /// Read a single bit, without moving the cursor of the underlying reader.
-    fn peak_bit(&mut self) -> bool {
-        let byte_index = self.position / 8;
-        let byte = self.bytes[byte_index];
-        let shift = 7 - (self.position % 8);
-        let bit = byte >> shift & 1;
-        bit == 1
-    }
-
-    /// Read a single byte from an unaligned position.
-    ///
-    /// It also works for aligned byte, but requires more computation.
-    fn read_byte_unaligned(&mut self) -> u8 {
-        let end_position = self.position + 8;
-        let mut value: u8 = 0;
-
-        for i in self.position..end_position {
-            let byte_index = i / 8;
-            let byte = self.bytes[byte_index];
-            let shift = 7 - (i % 8);
-            let bit = byte >> shift & 1;
-            value = (value << 1) | bit;
-        }
-
-        self.position = end_position;
-        value
-    }
-
     /// Seek to an offset, in bits.
     fn seek_bits(&mut self, pos: SeekFrom) -> Result<u64> {
         let new_position = match pos {
@@ -107,6 +70,31 @@ impl<'a> BitReader<'a> {
 
         self.position = new_position as usize;
         Ok(new_position as u64)
+    }
+
+    /// Read a single bit, without moving the cursor of the underlying reader.
+    fn peak_bit(&mut self) -> bool {
+        let byte_index = self.position / 8;
+        let byte = self.bytes[byte_index];
+        let shift = self.position % 8;
+        let bit = byte >> shift & 1;
+        bit == 1
+    }
+
+    /// Read a single byte from an unaligned position.
+    ///
+    /// It also works for aligned byte, but requires more computation.
+    /// It's the caller responsibility to check if a byte can be read or not.
+    fn read_byte_unaligned(&mut self) -> u8 {
+        let mut value: u8 = 0;
+
+        for i in 0..8 {
+            let bit = self.peak_bit() as u8;
+            value += bit << i;
+            self.position += 1;
+        }
+
+        value
     }
 }
 
@@ -214,25 +202,25 @@ mod tests {
         let bytes: &[u8] = &[0b1010_1100];
         let mut reader = BitReader::new(bytes);
 
-        assert!(reader.read_bit().unwrap());
+        assert!(!reader.read_bit().unwrap());
         assert!(!reader.read_bit().unwrap());
         assert!(reader.read_bit().unwrap());
-        assert!(!reader.read_bit().unwrap());
+        assert!(reader.read_bit().unwrap());
 
-        assert!(reader.read_bit().unwrap());
+        assert!(!reader.read_bit().unwrap());
         assert!(reader.read_bit().unwrap());
         assert!(!reader.read_bit().unwrap());
-        assert!(!reader.read_bit().unwrap());
+        assert!(reader.read_bit().unwrap());
     }
 
     #[test]
     fn read_bytes_unaligned() {
         let mut buf: [u8; 1] = [0];
         let bytes: &[u8] = &[0b1100_0010, 0b1001_1000];
-        let expected_byte: [u8; 1] = [0b1000_0101];
+        let expected_byte: [u8; 1] = [0b0110_0001];
         let mut reader = BitReader::new(bytes);
 
-        assert!(reader.read_bit().unwrap());
+        assert!(!reader.read_bit().unwrap());
 
         reader.read_exact(&mut buf).unwrap();
         assert_eq!(buf, expected_byte);
@@ -287,24 +275,24 @@ mod tests {
         let bytes: &[u8] = &[0b1010_1100];
         let mut reader = BitReader::new(bytes);
 
-        assert!(reader.read_bit().unwrap());
+        assert!(!reader.read_bit().unwrap());
         assert_eq!(reader.seek_bits(SeekFrom::Current(2)).unwrap(), 3);
-        assert!(!reader.read_bit().unwrap());
+        assert!(reader.read_bit().unwrap());
 
-        assert!(reader.read_bit().unwrap());
+        assert!(!reader.read_bit().unwrap());
         assert!(reader.read_bit().unwrap());
         assert!(!reader.read_bit().unwrap());
-        assert!(!reader.read_bit().unwrap());
+        assert!(reader.read_bit().unwrap());
 
         assert_eq!(reader.seek_bits(SeekFrom::End(-2)).unwrap(), 6);
         assert!(!reader.read_bit().unwrap());
-        assert!(!reader.read_bit().unwrap());
+        assert!(reader.read_bit().unwrap());
 
         assert_eq!(reader.seek_bits(SeekFrom::Start(4)).unwrap(), 4);
-        assert!(reader.read_bit().unwrap());
+        assert!(!reader.read_bit().unwrap());
         assert!(reader.read_bit().unwrap());
         assert!(!reader.read_bit().unwrap());
-        assert!(!reader.read_bit().unwrap());
+        assert!(reader.read_bit().unwrap());
     }
 
     #[test]
@@ -318,13 +306,13 @@ mod tests {
         reader.seek(SeekFrom::Current(1)).unwrap();
         assert!(!reader.read_bit().unwrap());
         assert!(!reader.read_bit().unwrap());
-        assert!(reader.read_bit().unwrap());
+        assert!(!reader.read_bit().unwrap());
 
         reader.seek(SeekFrom::End(-1)).unwrap();
-        assert!(reader.read_bit().unwrap());
         assert!(!reader.read_bit().unwrap());
         assert!(!reader.read_bit().unwrap());
-        assert!(reader.read_bit().unwrap());
+        assert!(!reader.read_bit().unwrap());
+        assert!(!reader.read_bit().unwrap());
 
         reader.seek(SeekFrom::Start(1)).unwrap();
         reader.read_exact(&mut buf).unwrap();
