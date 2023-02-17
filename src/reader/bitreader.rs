@@ -53,6 +53,26 @@ impl<'a> BitReader<'a> {
         Ok(bit)
     }
 
+    /// Read `size` bits and cast them to a [`u32`].
+    pub fn read_bits_to_u32(&mut self, size: usize) -> Result<u32> {
+        if size > 32 {
+            return Err(Error::new(ErrorKind::InvalidInput, "overflow (size > 32)"));
+        }
+        let new_position = self.position + size;
+        if new_position > self.length {
+            return Err(Error::from(ErrorKind::UnexpectedEof));
+        }
+
+        let mut value: u32 = 0;
+        for i in 0..size {
+            let bit = self.peak_bit() as u32;
+            value += bit << i;
+            self.position += 1;
+        }
+
+        Ok(value)
+    }
+
     /// Seek to an offset, in bits.
     pub fn seek_bits(&mut self, pos: SeekFrom) -> Result<u64> {
         let new_position = match pos {
@@ -247,6 +267,45 @@ mod tests {
         reader.read_exact(&mut buf).unwrap();
         assert_eq!(
             reader.read_bit().map_err(|e| e.kind()),
+            Err(ErrorKind::UnexpectedEof)
+        );
+    }
+
+    #[test]
+    fn read_bits_to_u32() {
+        let bytes: &[u8] = &[
+            0b0001_0011,
+            0b1110_1011,
+            0b1111_1111,
+            0b0000_0100,
+            0b0100_0110,
+            0b0011_1000,
+        ];
+        let mut reader = BitReader::new(bytes);
+
+        assert_eq!(reader.read_bits_to_u32(7).unwrap(), 19);
+        assert_eq!(reader.read_bits_to_u32(14).unwrap(), 16342);
+        assert_eq!(reader.read_bits_to_u32(3).unwrap(), 7);
+        assert_eq!(reader.read_bits_to_u32(20).unwrap(), 542212);
+        assert_eq!(reader.read_bits_to_u32(4).unwrap(), 3);
+    }
+
+    #[test]
+    fn error_on_overflow_read_bits_to_u32() {
+        let bytes: &[u8] = &[0; 6];
+        let mut reader = BitReader::new(bytes);
+        assert_eq!(
+            reader.read_bits_to_u32(33).map_err(|e| e.kind()),
+            Err(ErrorKind::InvalidInput)
+        );
+    }
+
+    #[test]
+    fn error_on_eof_read_bits_to_u32() {
+        let bytes: &[u8] = &[0];
+        let mut reader = BitReader::new(bytes);
+        assert_eq!(
+            reader.read_bits_to_u32(10).map_err(|e| e.kind()),
             Err(ErrorKind::UnexpectedEof)
         );
     }
