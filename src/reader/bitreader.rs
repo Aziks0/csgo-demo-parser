@@ -54,7 +54,7 @@ impl<'a> BitReader<'a> {
     }
 
     /// Seek to an offset, in bits.
-    fn seek_bits(&mut self, pos: SeekFrom) -> Result<u64> {
+    pub fn seek_bits(&mut self, pos: SeekFrom) -> Result<u64> {
         let new_position = match pos {
             SeekFrom::Current(offset) => self.position as i64 + offset,
             SeekFrom::Start(offset) => offset as i64,
