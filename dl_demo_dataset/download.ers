@@ -1,0 +1,81 @@
+#!/usr/bin/env rust-script
+// cargo-deps: zstd="0.12"
+
+use std::fs;
+use std::io;
+use std::path::{Path, PathBuf};
+use std::process::Command;
+
+const SUB_REPO_DIR_RELATIVE: &'static str = "../tests/demo-dataset-repo";
+const DATA_DIR_RELATIVE: &'static str = "../tests/data";
+
+struct ScriptDirPath {
+    path: PathBuf,
+}
+
+impl ScriptDirPath {
+    fn new() -> Self {
+        let script_file_path = env!("RUST_SCRIPT_PATH");
+        let mut path = PathBuf::from(script_file_path);
+        path.pop();
+
+        Self { path }
+    }
+
+    fn push_return<P: AsRef<Path>>(&self, path: P) -> PathBuf {
+        let mut path_returned = self.path.clone();
+        path_returned.push(path);
+        path_returned
+    }
+}
+
+fn main() {
+    let script_dir_path = ScriptDirPath::new();
+    let sub_repo_dir = script_dir_path.push_return(SUB_REPO_DIR_RELATIVE);
+    let data_dir = script_dir_path.push_return(DATA_DIR_RELATIVE);
+
+    if !data_dir.try_exists().unwrap() {
+        fs::create_dir_all(&data_dir).unwrap();
+    }
+
+    // Init & Update sub-repo
+    Command::new("git")
+        .args(&["submodule", "update", "--init"])
+        .status()
+        .unwrap();
+    println!("✔ - Sub-repo initialized and updated");
+
+    // Pull sub-repo
+    Command::new("git")
+        .current_dir(&sub_repo_dir)
+        .args(&["lfs", "pull"])
+        .status()
+        .unwrap();
+    println!("✔ - Sub-repo pulled");
+
+    // Filter the files that have not the `.zst` extension
+    let input_file_paths = fs::read_dir(sub_repo_dir)
+        .expect("failed to read sub-repo directory")
+        .map(|entry| entry.unwrap().path())
+        .filter(|path| path.extension().map(|ext| ext == "zst").unwrap_or(false))
+        .collect::<Vec<_>>();
+
+    // Decompress the files
+    for input_file_path in input_file_paths {
+        let input_file = fs::File::open(&input_file_path).unwrap();
+
+        let output_file_path = data_dir.join(format!(
+            "{}.dem",
+            input_file_path.file_stem().unwrap().to_str().unwrap()
+        ));
+        let mut output_file = fs::File::create(output_file_path).unwrap();
+
+        let mut decoder = zstd::stream::Decoder::new(input_file).unwrap();
+
+        io::copy(&mut decoder, &mut output_file).unwrap();
+        println!(
+            "✔ - Decompressed {}",
+            input_file_path.file_name().unwrap().to_str().unwrap()
+        );
+    }
+}
