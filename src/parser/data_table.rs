@@ -1,3 +1,4 @@
+use byteorder::{ReadBytesExt, LE};
 use getset::Getters;
 use protobuf::CodedInputStream;
 use tracing::{instrument, trace};
@@ -43,13 +44,13 @@ impl DataTables {
         }
 
         trace!("reading server classes");
-        let class_count = reader.read_u16()? as usize;
+        let class_count = reader.read_u16::<LE>()? as usize;
         let mut server_classes: Vec<csvcmsg_class_info::Class_t> = Vec::with_capacity(class_count);
 
         for _ in 0..class_count {
             let mut server_class = csvcmsg_class_info::Class_t::new();
 
-            let class_id = reader.read_u16()?;
+            let class_id = reader.read_u16::<LE>()?;
             if class_id as usize >= class_count {
                 return Err(DataTablesParsingError::InvalidServerClassIndex {
                     expected_max: class_count,
