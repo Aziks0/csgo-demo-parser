@@ -1,6 +1,7 @@
 #![allow(clippy::upper_case_acronyms)] // Needed for `NetMessage::NOP`
 
 use paste::paste;
+use protobuf::Message as ProtoMessage;
 use protobuf::{CodedInputStream, Enum};
 use tracing::{instrument, trace};
 
@@ -78,19 +79,14 @@ macro_rules! create_message_impl {
                 // "conversion".
                 if command == SVC_Messages::svc_UserMessage.value() {
                     let svc_message: CSVCMsg_UserMessage = $reader.read_message()?;
-
-                    // The data from protobuf's `CSVCMsg_UserMessage` contains
-                    // a `CUSRMsg_x`, so we need a new reader on those data to
-                    // read our new message.
-                    let mut data = svc_message.msg_data();
-                    let mut temp_reader = CodedInputStream::new(&mut data);
+                    let data = svc_message.msg_data();
 
                     paste! {
                         if let Some(message_type) = USR_Messages::from_i32(svc_message.msg_type()) {
                             return Ok(match message_type {
                                 $(
                                     USR_Messages::[<usr_ $usr_msg>] =>
-                                        Message::Usr(UsrMessage::$usr_msg(temp_reader.read_message()?)),
+                                        Message::Usr(UsrMessage::$usr_msg([<CUSRMsg_ $usr_msg>]::parse_from_bytes(&data)?)),
                                 )*
                                     // Fallback for unhandled User messages
                                     _ => Message::Svc(SvcMessage::UserMessage(svc_message.clone())),
@@ -247,3 +243,25 @@ create_message_impl!(
         UtilMessageResponse
     ]
 );
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use protobuf::text_format::parse_from_str;
+
+    #[test]
+    fn parse_usr_message() {
+        let buf = [
+            23, // SVC_Messages::svc_UserMessage
+            6,  // length of following CSVCMsg_UserMessage
+            0x08, 0x19, 0x12, 0x02, 0x08, 0x01,
+        ];
+        let parsed = Message::try_new(&mut CodedInputStream::from_bytes(&buf)).unwrap();
+        if let Message::Usr(UsrMessage::ProcessSpottedEntityUpdate(got)) = parsed {
+            let want = parse_from_str("new_update: true").unwrap();
+            assert_eq!(got, want);
+        } else {
+            panic!("parsed {:?}, expected ProcessSpottedEntityUpdate", parsed);
+        }
+    }
+}

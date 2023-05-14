@@ -23,14 +23,7 @@ impl Packet {
         let end_position = reader.read_fixed32()? as u64 + reader.pos();
 
         while reader.pos() < end_position {
-            // This can fail for some unknown reason. If it does, we should
-            // continue and act as if nothing happened.
-            let res = Message::try_new(reader);
-            let message = if let Ok(message) = res {
-                message
-            } else {
-                continue;
-            };
+            let message = Message::try_new(reader)?;
             trace!(?message);
             messages.push(message);
         }
