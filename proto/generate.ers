@@ -46,10 +46,11 @@ fn main() {
         .collect::<Result<Vec<_>, io::Error>>()
         .unwrap();
     // Get proto filenames without `.proto` extension
-    let input_filenames = input_files
+    let mut input_filenames = input_files
         .iter()
         .map(|file| file.file_stem().unwrap().to_str().unwrap())
         .collect::<Vec<_>>();
+    input_filenames.sort();
     println!("Proto files that will be generated: {:#?}", input_filenames);
 
     // Ask not to generate `mod.rs` file, we will do it ourselves
@@ -98,7 +99,7 @@ fn main() {
         mod_file.push_str(line.as_str());
     }
     // Write generated `mod.rs` file
-    output_dir.push("/mod.rs");
+    output_dir.push("mod.rs");
     fs::write(output_dir, mod_file).unwrap();
     println!("✔ - Mod file generated");
 }
